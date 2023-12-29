@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 use std::process::Command;
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -70,10 +71,19 @@ fn monitor_process() -> Result<(), Error> {
     let seconds_since_epoch = since_epoch.as_secs();
     println!("Unixtimestamp: {:?}", seconds_since_epoch);
 
+    // Get the env variables
+    let pg_user = match env::var_os("PG_USER") {
+        Some(v) => v.into_string().unwrap(),
+        None => panic!("$USER is not set")
+    };
+    let pg_pass = match env::var_os("PG_PASS") {
+        Some(v) => v.into_string().unwrap(),
+        None => panic!("$PASS is not set")
+    };
+
     // DB Storage for processes
-    let pgpass = 
-    let encodedpass = 
-    let conn_string = 
+    let encodedpass = encode(&pg_pass);
+    let conn_string = format!("postgresql://{}:{}@localhost/postgres", pg_user, encodedpass);
 
     let mut client = match Client::connect(
         &conn_string,
