@@ -71,9 +71,9 @@ fn monitor_process() -> Result<(), Error> {
     println!("Unixtimestamp: {:?}", seconds_since_epoch);
 
     // DB Storage for processes
-    let pgpass = "Worldwarcraft3!@";
-    let encodedpass = encode(pgpass);
-    let conn_string = format!("postgresql://ben:{}@222.153.8.54:5432/postgres", encodedpass);
+    let pgpass = 
+    let encodedpass = 
+    let conn_string = 
 
     let mut client = match Client::connect(
         &conn_string,
