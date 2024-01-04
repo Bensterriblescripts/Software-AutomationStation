@@ -80,7 +80,7 @@ fn monitor_process() -> Result<(), Error> {
 
         // DB Connection
         let encodedpass = encode(&pg_pass);
-        let conn_string = format!("postgresql://{}:{}@localhost/postgres", pg_user, encodedpass);
+        let conn_string = format!("postgresql://{}:{}@192.168.0.103/postgres", pg_user, encodedpass);
 
         let mut client = match Client::connect(
             &conn_string,
