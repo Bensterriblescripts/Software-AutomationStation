@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use std::env;
 use std::process::Command;
-use std::time::Duration;
+use std::{thread, time};
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::thread;
 
 use regex::Regex;
 use postgres::{Client, NoTls, Error};
@@ -28,6 +27,7 @@ fn main() {
 fn monitor_process() -> Result<(), Error> {
 
     // Get the current unix time
+    let mut iteration = 1;
     let start = SystemTime::now();
     let since_epoch = start
         .duration_since(UNIX_EPOCH)
@@ -42,9 +42,10 @@ fn monitor_process() -> Result<(), Error> {
     let mut hashmap_processes: HashMap<String, f32> = HashMap::new();
 
     for _x in 1..1441 {
-        let vec_returnedlist = process_scan(&reg_process, &reg_format);
-        for returnedlist in vec_returnedlist {
 
+        let vec_returnedlist = process_scan(&reg_process, &reg_format);
+
+        for returnedlist in vec_returnedlist {
             // Weight calculation - 8 hours of uptime is '1', everything else is a median
             let weight: f32 = 0.0020833;
             if hashmap_processes.contains_key(&returnedlist) {
@@ -77,7 +78,7 @@ fn monitor_process() -> Result<(), Error> {
             None => panic!("$PASS is not set")
         };
 
-        // DB Storage for processes
+        // DB Connection
         let encodedpass = encode(&pg_pass);
         let conn_string = format!("postgresql://{}:{}@localhost/postgres", pg_user, encodedpass);
 
@@ -91,6 +92,8 @@ fn monitor_process() -> Result<(), Error> {
                 return Err(err);
             }
         };
+
+        // Update existing processes
         let result = client.query("SELECT * FROM process", &[]);
         match result {
             Ok(rows) => {
@@ -102,21 +105,36 @@ fn monitor_process() -> Result<(), Error> {
                     
                     println!("Found row: {:?}, {:?}, {:?}, {:?}", name, weight, lastactive, firstactive);
 
-                    // Updating a known process
                     if hashmap_processes.contains_key(name) {
-                        let new_weight = hashmap_processes.get(name).unwrap();
-
-                        client.execute("UPDATE process SET weight = $1 AND lastactive = $2 WHERE name = $3", &[&new_weight, &seconds_since_epoch, &name],)?;
+                        let new_weight_float = hashmap_processes.get_key_value(name).unwrap().1;
+                        let new_weight: f32 = new_weight_float.to_owned();
+                        let mut update = client.execute(r#"UPDATE process SET weight = "$1" AND lastactive = "$2" WHERE name = "$3""#, &[&new_weight, &seconds_since_epoch, &name],)?;
 
                         hashmap_processes.remove(name);
                     }
                 };
             }
             Err(err) => {
-                eprintln!("Error during select query: {}", err);
+                eprintln!("Error during process select query: {}", err);
                 return Err(err);
             }
         }
+
+        // Insert new processes
+        for process in &hashmap_processes {
+            println!("Process name: {}", process.0);
+            println!("Process key: {}", process.1);
+            let mut insert = client.execute("INSERT INTO process (name, weight, lastactive, firstactive) VALUES ($1, $2, $3, $4)", &[process.0, process.1, &seconds_since_epoch, &seconds_since_epoch],)?;
+        }
+
+        // Delay before next run
+        println!("Iteration #{} completed...", iteration.to_string());
+        let dur_minute = time::Duration::from_secs(60);
+        let now = time::Instant::now();
+
+        thread::sleep(dur_minute);
+        assert!(now.elapsed() >= dur_minute);
+        iteration += 1;
     }
     Ok(())
 
