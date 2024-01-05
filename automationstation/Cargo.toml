@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 hashmap = "0.0.1"
 postgres = "0.19.7"
-powershell_script = "1.1.0"
 regex = "1.9.5"
 string = "0.3.0"
 urlencoding = "2.1.3"

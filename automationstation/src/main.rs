@@ -42,12 +42,13 @@ fn monitor_process() -> HashMap<String, f32> {
     // We want to compile regex as infrequently as possible
     let reg_title = Regex::new(r#"Name"#).unwrap();
     let reg_titlebar = Regex::new(r#"----"#).unwrap();
+    let reg_process = Regex::new(r#"(?m)^.*?$"#).unwrap();
 
     let mut hashmap_processes: HashMap<String, f32> = HashMap::new();
 
     for _x in 1..1441 {
 
-        let vec_returnedlist = process_scan(&reg_title, &reg_titlebar);
+        let vec_returnedlist = process_scan(&reg_title, &reg_titlebar, &reg_process);
 
         for returnedlist in vec_returnedlist {
             // Weight calculation - 8 hours of uptime is '1', everything else is a median
@@ -78,7 +79,7 @@ fn monitor_process() -> HashMap<String, f32> {
     return hashmap_processes;
 
 }
-fn process_scan(reg_title: &Regex, reg_titlebar: &Regex) -> Vec<String> {
+fn process_scan(reg_title: &Regex, reg_titlebar: &Regex, reg_process: &Regex) -> Vec<String> {
 
     let mut vec_scannedlist: Vec<String> = Vec::new();
 
@@ -90,15 +91,19 @@ fn process_scan(reg_title: &Regex, reg_titlebar: &Regex) -> Vec<String> {
         .print_commands(false)
         .build();
     let output = ps.run(r#"Get-Process | Where-Object {$_.MainWindowTitle -ne ""} | Select-Object Name"#).unwrap().to_string();
-    println!("{}", output);
 
     // Remove excess strings
     let output = reg_title.replace(&output, "");
     let output = reg_titlebar.replace(&output, "");
+
+    println!("Full output: {}", output);
     
+    for process in reg_process.find_iter(&output) {
+        println!("Found process: {}", process.as_str());
+        vec_scannedlist.push(process.as_str().to_string());
+    }
 
-
-
+    println!("Full list: {:?}", vec_scannedlist);
     return vec_scannedlist;
 }
 fn record_process(daily: HashMap<String, f32>) {
