@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::{env, vec};
-use std::process::Command;
+use std::{env};
 use std::{thread, time};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -41,14 +40,14 @@ fn monitor_process() -> HashMap<String, f32> {
     println!("Unixtimestamp: {:?}", seconds_since_epoch);
 
     // We want to compile regex as infrequently as possible
-    let reg_process = Regex::new(r#"".*exe"#).unwrap();
-    let reg_format = Regex::new(r#"\""#).unwrap();
+    let reg_title = Regex::new(r#"Name"#).unwrap();
+    let reg_titlebar = Regex::new(r#"----"#).unwrap();
 
     let mut hashmap_processes: HashMap<String, f32> = HashMap::new();
 
     for _x in 1..1441 {
 
-        let vec_returnedlist = process_scan(&reg_process, &reg_format);
+        let vec_returnedlist = process_scan(&reg_title, &reg_titlebar);
 
         for returnedlist in vec_returnedlist {
             // Weight calculation - 8 hours of uptime is '1', everything else is a median
@@ -79,29 +78,27 @@ fn monitor_process() -> HashMap<String, f32> {
     return hashmap_processes;
 
 }
-fn process_scan(reg_process: &Regex, reg_format: &Regex) -> Vec<String> {
+fn process_scan(reg_title: &Regex, reg_titlebar: &Regex) -> Vec<String> {
 
     let mut vec_scannedlist: Vec<String> = Vec::new();
 
+    // Run a active window powershell script
     let ps = PsScriptBuilder::new()
         .no_profile(true)
         .non_interactive(true)
         .hidden(false)
         .print_commands(false)
         .build();
-    let output:String = ps.run(r#"Get-Process | Where-Object {$_.MainWindowTitle -ne ""}"#).unwrap().to_string();
+    let output = ps.run(r#"Get-Process | Where-Object {$_.MainWindowTitle -ne ""} | Select-Object Name"#).unwrap().to_string();
     println!("{}", output);
-    for process in reg_process.find_iter(&output) {
-        let process_clean = reg_format.replace_all(&process.as_str(), "");
 
-        // Ensure no duplicates on each instance
-        if vec_scannedlist.contains(&process_clean.to_string()) {
-        }
-        else {
-            vec_scannedlist.push(process_clean.to_string());
-        }
-    }
-    println!("{:?}", vec_scannedlist);
+    // Remove excess strings
+    let output = reg_title.replace(&output, "");
+    let output = reg_titlebar.replace(&output, "");
+    
+
+
+
     return vec_scannedlist;
 }
 fn record_process(daily: HashMap<String, f32>) {
