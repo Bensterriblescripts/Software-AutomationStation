@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::{env};
 use std::{thread, time};
 use std::time::{SystemTime, UNIX_EPOCH};
+use snailquote::unescape;
 
 use regex::Regex;
 use postgres::{Client, NoTls};
@@ -28,7 +29,7 @@ fn main() {
 /*************/
 /* PROCESSES */
 /*************/
-fn monitor_process() -> HashMap<String, f32> {
+fn monitor_process() -> HashMap<&'static str, f32> {
 
     // Get the current unix time
     let mut iteration = 1;
@@ -44,7 +45,7 @@ fn monitor_process() -> HashMap<String, f32> {
     let reg_titlebar = Regex::new(r#"----"#).unwrap();
     let reg_process = Regex::new(r#"(?m)^.*?$"#).unwrap();
 
-    let mut hashmap_processes: HashMap<String, f32> = HashMap::new();
+    let mut hashmap_processes: HashMap<&str, f32> = HashMap::new();
 
     for _x in 1..1441 {
 
@@ -79,9 +80,9 @@ fn monitor_process() -> HashMap<String, f32> {
     return hashmap_processes;
 
 }
-fn process_scan(reg_title: &Regex, reg_titlebar: &Regex, reg_process: &Regex) -> Vec<String> {
+fn process_scan(reg_title: &Regex, reg_titlebar: &Regex, reg_process: &Regex) -> Vec<&'static str> {
 
-    let mut vec_scannedlist: Vec<String> = Vec::new();
+    let mut vec_scannedlist: Vec<&str> = Vec::new();
 
     // Run a active window powershell script
     let ps = PsScriptBuilder::new()
@@ -99,14 +100,14 @@ fn process_scan(reg_title: &Regex, reg_titlebar: &Regex, reg_process: &Regex) ->
     println!("Full output: {}", output);
     
     for process in reg_process.find_iter(&output) {
-        println!("Found process: {}", process.as_str());
-        vec_scannedlist.push(process.as_str().to_string());
+        println!("Adding new process: {:?}", process);
+        vec_scannedlist.push(process.as_str().clone());
     }
 
     println!("Full list: {:?}", vec_scannedlist);
     return vec_scannedlist;
 }
-fn record_process(daily: HashMap<String, f32>) {
+fn record_process(daily: HashMap<&'static str, f32>) {
 
     let mut daily_process = daily;
 
